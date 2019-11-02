@@ -1,8 +1,8 @@
-from typing import Union, Literal, List, TypeVar, cast
+from typing import Union, List, TypeVar
 
 EMPTY = "."
 WALL = "W"
-MazePosition = Literal[".", "W"]
+MazePosition = str
 ListItem = TypeVar("ListItem")
 
 
@@ -64,21 +64,19 @@ def dijkstra(w: List[List[int]], start: int, inf: int = INF) -> List[int]:
     return dist
 
 
-def path_finder(maze: str) -> Union[int, Literal[False]]:
+def path_finder(maze: str) -> Union[int, bool]:
     if maze.strip().replace(EMPTY, "").replace(WALL, "").replace("\n", ""):
         raise ValueError(
             "Maze may contain only following characters: ('.', 'W', '\\n')"
         )
 
-    parsed_maze: List[List[MazePosition]] = [
-        cast(List[MazePosition], list(row.strip())) for row in maze.split()
-    ]
+    parsed_maze: List[List[MazePosition]] = [list(row.strip()) for row in maze.split()]
 
     if parsed_maze[0][0] == WALL or parsed_maze[-1][-1] == WALL:
-        return False
+        raise ValueError("Maze start and finish positions should be empty")
 
     if len(parsed_maze) != len(parsed_maze[0]):
-        return False
+        raise ValueError("Maze should be a square")
 
     w = weights(parsed_maze)
 
