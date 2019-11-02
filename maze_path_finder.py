@@ -1,4 +1,5 @@
-from typing import Union, List, TypeVar
+from typing import Union, List, TypeVar, MutableMapping, Mapping
+from collections import defaultdict
 
 EMPTY = "."
 WALL = "W"
@@ -9,13 +10,17 @@ ListItem = TypeVar("ListItem")
 INF = 10 ** 10
 
 
-def weights(maze: List[List[MazePosition]], inf: int = INF) -> List[List[int]]:
+def weights(
+    maze: List[List[MazePosition]], inf: int = INF
+) -> MutableMapping[int, MutableMapping[int, int]]:
     size = len(maze)
 
     def get_flat_index(x: int, y: int) -> int:
         return x * size + y
 
-    w = [[inf for _ in range(size ** 2)] for _ in range(size ** 2)]
+    w: MutableMapping[int, MutableMapping[int, int]] = defaultdict(
+        lambda: defaultdict(lambda: inf)
+    )
 
     for i, row in enumerate(maze):
         for j, cell in enumerate(row):
@@ -38,9 +43,9 @@ def weights(maze: List[List[MazePosition]], inf: int = INF) -> List[List[int]]:
     return w
 
 
-def dijkstra(w: List[List[int]], start: int, inf: int = INF) -> List[int]:
-    n = len(w)
-
+def dijkstra(
+    n: int, w: Mapping[int, Mapping[int, int]], start: int, inf: int = INF
+) -> List[int]:
     dist = [INF] * n
     dist[start] = 0
 
@@ -80,7 +85,8 @@ def path_finder(maze: str) -> Union[int, bool]:
 
     w = weights(parsed_maze)
 
-    dist = dijkstra(w, 0)
+    size = len(parsed_maze)
+    dist = dijkstra(size ** 2, w, 0)
     if dist[-1] == INF:
         return False
 

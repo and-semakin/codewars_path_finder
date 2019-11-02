@@ -27,4 +27,6 @@ class TestPathFinder:
         self, maze: List[List[MazePosition]], expected_weights: List[List[int]]
     ) -> None:
         w = weights(maze, inf=0)
-        assert w == expected_weights
+        size = len(maze)
+        w_list = [[w[i][j] for j in range(size ** 2)] for i in range(size ** 2)]
+        assert w_list == expected_weights
