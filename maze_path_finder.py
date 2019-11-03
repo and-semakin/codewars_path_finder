@@ -1,72 +1,94 @@
-from typing import Union, List, TypeVar, MutableMapping, Mapping
-from collections import defaultdict
+from typing import (
+    Any,
+    Union,
+    List,
+    Tuple,
+    Iterable,
+    Set,
+)
+import heapq
 
 EMPTY = "."
 WALL = "W"
 MazePosition = str
-ListItem = TypeVar("ListItem")
 
 
 INF = 10 ** 10
 
 
-def weights(
-    maze: List[List[MazePosition]], inf: int = INF
-) -> MutableMapping[int, MutableMapping[int, int]]:
-    size = len(maze)
+class PriorityQueue:
+    elements: List[Any]
 
-    def get_flat_index(x: int, y: int) -> int:
-        return x * size + y
+    def __init__(self) -> None:
+        self.elements = []
 
-    w: MutableMapping[int, MutableMapping[int, int]] = defaultdict(
-        lambda: defaultdict(lambda: inf)
-    )
+    def empty(self) -> bool:
+        return len(self.elements) == 0
 
-    for i, row in enumerate(maze):
-        for j, cell in enumerate(row):
-            if cell == WALL:
-                continue
+    def put(self, item: Any, priority: float) -> None:
+        heapq.heappush(self.elements, (priority, item))
 
-            current_cell_index = get_flat_index(i, j)
-
-            for shift_i, shift_j in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                if not (0 <= i + shift_i < size):
-                    continue
-                if not (0 <= j + shift_j < size):
-                    continue
-                if maze[i + shift_i][j + shift_j] == WALL:
-                    continue
-
-                adjacent_cell_index = get_flat_index(i + shift_i, j + shift_j)
-                w[current_cell_index][adjacent_cell_index] = 1
-
-    return w
+    def get(self) -> Any:
+        return heapq.heappop(self.elements)[1]
 
 
-def dijkstra(
-    n: int, w: Mapping[int, Mapping[int, int]], start: int, inf: int = INF
-) -> List[int]:
-    dist = [INF] * n
-    dist[start] = 0
+Point = Tuple[int, int]
 
-    used = [False] * n
 
-    min_dist = 0
-    min_vertex = start
+class SquareGrid:
+    width: int
+    height: int
+    walls: Set[Point]
 
-    while min_dist < INF:
-        i = min_vertex
-        used[i] = True
-        for j in range(n):
-            if dist[i] + w[i][j] < dist[j]:
-                dist[j] = dist[i] + w[i][j]
-        min_dist = INF
-        for j in range(n):
-            if not used[j] and dist[j] < min_dist:
-                min_dist = dist[j]
-                min_vertex = j
+    def __init__(self, width: int, height: int) -> None:
+        self.width = width
+        self.height = height
+        self.walls = set()
 
-    return dist
+    def in_bounds(self, id: Point) -> bool:
+        (x, y) = id
+        return 0 <= x < self.width and 0 <= y < self.height
+
+    def passable(self, id: Point) -> bool:
+        return id not in self.walls
+
+    def neighbors(self, id: Point) -> Iterable[Point]:
+        (x, y) = id
+        results = [(x + 1, y), (x, y - 1), (x - 1, y), (x, y + 1)]
+        if (x + y) % 2 == 0:
+            results.reverse()  # aesthetics
+        return filter(self.passable, filter(self.in_bounds, results))
+
+    def cost(self, *args) -> int:
+        return 1
+
+
+def heuristic(a: Point, b: Point) -> int:
+    (x1, y1) = a
+    (x2, y2) = b
+    return abs(x1 - x2) + abs(y1 - y2)
+
+
+def a_star_search(graph: SquareGrid, start: Point, goal: Point) -> int:
+    frontier = PriorityQueue()
+    frontier.put(start, 0)
+    cost_so_far = {}
+    cost_so_far[start] = 0
+
+    while not frontier.empty():
+        current = frontier.get()
+
+        if current == goal:
+            break
+
+        for next in graph.neighbors(current):
+            new_cost = cost_so_far[current] + graph.cost(current, next)
+            if next not in cost_so_far or new_cost < cost_so_far[next]:
+                cost_so_far[next] = new_cost
+                priority = new_cost + heuristic(goal, next)
+                frontier.put(next, priority)
+
+    return cost_so_far.get(goal, -1)
 
 
 def path_finder(maze: str) -> Union[int, bool]:
@@ -83,11 +105,16 @@ def path_finder(maze: str) -> Union[int, bool]:
     if len(parsed_maze) != len(parsed_maze[0]):
         raise ValueError("Maze should be a square")
 
-    w = weights(parsed_maze)
-
     size = len(parsed_maze)
-    dist = dijkstra(size ** 2, w, 0)
-    if dist[-1] == INF:
-        return False
+    grid = SquareGrid(size, size)
+    grid.walls = set(
+        (i, j)
+        for i, row in enumerate(parsed_maze)
+        for j, cell in enumerate(row)
+        if cell == WALL
+    )
 
-    return dist[-1]
+    dist = a_star_search(grid, (0, 0), (size - 1, size - 1))
+    if dist == -1:
+        return False
+    return dist
